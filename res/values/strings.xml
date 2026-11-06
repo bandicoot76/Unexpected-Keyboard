@@ -130,6 +130,11 @@
     <string name="menu_item_clipboard">Clipboard</string>
     <string name="menu_item_emoji">Emoji</string>
     <string name="menu_item_floating">Floating keyboard</string>
+    <string name="menu_item_one_handed">One-handed</string>
+    <string name="menu_item_edit_text">Text editing</string>
+    <string name="menu_item_resize">Resize</string>
+    <string name="menu_item_undo">Undo</string>
+    <string name="menu_item_next_language">Next language</string>
     <string name="key_descr_copy">Copy</string>
     <string name="key_descr_paste">Paste</string>
     <string name="key_descr_cut">Cut</string>

@@ -31,7 +31,7 @@ import android.widget.FrameLayout;
 public class FloatingKeyboardFrame extends FrameLayout
 {
   /** The strip above the keys the card is dragged by. */
-  private static final float HANDLE_H = 14f;
+  private static final float HANDLE_H = 22f;
 
   /** The corner the card is resized from, the same 36dp thumb zone the pill above it. */
   private static final float GRIP_SIZE = 36f;
@@ -55,6 +55,7 @@ public class FloatingKeyboardFrame extends FrameLayout
 
   private final int _handlePx;
   private final int _gripPx;
+  private final int _topGuardPx;
 
   private int _widthPx;
   private float _heightScale = 1f;
@@ -83,6 +84,7 @@ public class FloatingKeyboardFrame extends FrameLayout
     super(context);
     _handlePx = (int)dp(HANDLE_H);
     _gripPx = (int)dp(GRIP_SIZE);
+    _topGuardPx = (int)dp(48f);
     setClickable(true);
     setBackground(cardBackground());
     setElevation(dp(8f));
@@ -131,6 +133,29 @@ public class FloatingKeyboardFrame extends FrameLayout
     invalidate();
   }
 
+  /** Nudges the card width (resize menu), keeping the card within the screen. */
+  public void adjustWidth(int deltaPx)
+  {
+    View parent = (View)getParent();
+    android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+    int maxWidth = (parent != null && parent.getWidth() > 0) ? parent.getWidth() : dm.widthPixels;
+    int minWidth = (int)Math.min(dp(MIN_WIDTH), maxWidth);
+    _widthPx = (int)clamp(_widthPx + deltaPx, minWidth, maxWidth);
+    requestLayout();
+    invalidate();
+    notifyGeometry(true);
+  }
+
+  /** Nudges the row height (resize menu). */
+  public void adjustHeightScale(float delta)
+  {
+    _heightScale = clampHeightScale(_heightScale + delta);
+    applyHeightScale();
+    requestLayout();
+    invalidate();
+    notifyGeometry(true);
+  }
+
   /** The card's bounds on screen, for the touch insets. */
   public Rect screenRect()
   {
@@ -149,19 +174,26 @@ public class FloatingKeyboardFrame extends FrameLayout
   private void applyPosition(float x, float y)
   {
     android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
-    // Authoritative travel bounds are the screen, because while floating the
-    // host fills the screen. A parent that is not yet measured (or collapsed
-    // to the card size) must not be allowed to clamp travel to zero, which is
-    // what pinned the card to the top-left and made it un-draggable.
+    // Authoritative travel bounds are the screen (the floating host fills it).
+    // Prefer a fully-measured parent when available, but never let an
+    // unmeasured or collapsed parent clamp travel to zero.
     View parent = (View)getParent();
     float boundW = (parent != null && parent.getWidth() > _widthPx)
         ? parent.getWidth() : dm.widthPixels;
     float boundH = (parent != null && parent.getHeight() > 0)
         ? parent.getHeight() : dm.heightPixels;
+    int cardH = getHeight() > 0 ? getHeight()
+        : (_handlePx + childKeyboardHeight());
     float maxX = Math.max(0f, boundW - _widthPx);
-    float maxY = Math.max(0f, boundH - (_handlePx + childKeyboardHeight()));
-    setTranslationX(clamp(x, 0f, maxX));
-    setTranslationY(clamp(y, 0f, maxY));
+    float maxY = Math.max(0f, boundH - cardH);
+    // Write the clamped value back so a drag that hits the screen edge does
+    // not persist the out-of-bounds coordinate (which is what re-parked the
+    // card at the top on the next open). Also keep the card below the status
+    // bar, where the drag handle is actually reachable.
+    _xPx = clamp(x, 0f, maxX);
+    _yPx = clamp(y, _topGuardPx, maxY);
+    setTranslationX(_xPx);
+    setTranslationY(_yPx);
   }
 
   /** Re-seats inside the parent's current bounds. */
@@ -267,6 +299,14 @@ public class FloatingKeyboardFrame extends FrameLayout
     _yPx = _startY + (e.getRawY() - _downRawY);
     seatPosition();
     notifyGeometry(committed);
+  }
+
+  /** Drag the card by raw deltas without touching the stored position. */
+  private void moveBy(float dx, float dy)
+  {
+    _xPx += dx;
+    _yPx += dy;
+    seatPosition();
   }
 
   private void beginResize(MotionEvent e)

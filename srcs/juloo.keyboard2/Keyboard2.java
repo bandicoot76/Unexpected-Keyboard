@@ -69,6 +69,9 @@ public class Keyboard2 extends InputMethodService
   private static final String PREF_FLOATING_H = "floating_height_scale";
   private static final String PREF_FLOATING_ENABLED = "floating_enabled";
 
+  /** One-handed mode: -1 = left hand (shrink right), 0 = off, +1 = right hand. */
+  private int _oneHandedSide = 0;
+
   private Config _config;
 
   private FoldStateTracker _foldStateTracker;
@@ -182,10 +185,163 @@ public class Keyboard2 extends InputMethodService
     _candidates_view = (CandidatesView)_keyboard_container_view.findViewById(R.id.candidates_view);
 
     View menuBtn = _keyboard_container_view.findViewById(R.id.toolbar_menu_button);
-    menuBtn.setOnClickListener((v) -> show_toolbar_menu());
+    attach_menu_swipe(menuBtn);
     View voiceBtn = _keyboard_container_view.findViewById(R.id.toolbar_voice_button);
     voiceBtn.setOnClickListener((v) ->
         _recv.handle_event_key(KeyValue.Event.SWITCH_VOICE_TYPING));
+    apply_one_handed();
+  }
+
+  /** Gboard-style menu button: tap = settings, swipe left/right = quick menus. */
+  private void attach_menu_swipe(final View btn)
+  {
+    final float[] downX = new float[1];
+    btn.setOnTouchListener(new View.OnTouchListener() {
+      public boolean onTouch(View v, MotionEvent e) {
+        switch (e.getActionMasked())
+        {
+          case MotionEvent.ACTION_DOWN:
+            downX[0] = e.getRawX();
+            return false;
+          case MotionEvent.ACTION_UP:
+            float dx = e.getRawX() - downX[0];
+            if (Math.abs(dx) >= dp(56f))
+            {
+              if (dx < 0) show_left_menu(); else show_right_menu();
+              return true;
+            }
+            break;
+        }
+        return false;
+      }
+    });
+    btn.setOnClickListener((v) -> show_toolbar_menu());
+  }
+
+  /** Swipe left: clipboard, emoji, one-handed, text editing. */
+  private void show_left_menu()
+  {
+    show_list_menu(R.string.menu_title, new String[]{
+        getString(R.string.menu_item_clipboard),
+        getString(R.string.menu_item_emoji),
+        getString(R.string.menu_item_one_handed),
+        getString(R.string.menu_item_edit_text)
+      }, new Runnable[]{
+        () -> _recv.handle_event_key(KeyValue.Event.SWITCH_CLIPBOARD),
+        () -> _recv.handle_event_key(KeyValue.Event.SWITCH_EMOJI),
+        this::show_one_handed_menu,
+        this::show_edit_menu
+      });
+  }
+
+  /** Swipe right: floating, resize, undo, next language. */
+  private void show_right_menu()
+  {
+    show_list_menu(R.string.menu_title, new String[]{
+        getString(R.string.menu_item_floating),
+        getString(R.string.menu_item_resize),
+        getString(R.string.menu_item_undo),
+        getString(R.string.menu_item_next_language)
+      }, new Runnable[]{
+        this::toggle_floating,
+        this::show_resize_menu,
+        () -> _keyeventhandler.key_up(KeyValue.getKeyByName("undo"), Pointers.Modifiers.EMPTY),
+        () -> incrTextLayout(1)
+      });
+  }
+
+  private void show_edit_menu()
+  {
+    show_list_menu(R.string.menu_item_edit_text, new String[]{
+        "Cut", "Copy", "Paste", "Select all"
+      }, new Runnable[]{
+        () -> edit_key("cut"),
+        () -> edit_key("copy"),
+        () -> edit_key("paste"),
+        () -> edit_key("selectAll")
+      });
+  }
+
+  private void show_one_handed_menu()
+  {
+    show_list_menu(R.string.menu_item_one_handed, new String[]{
+        "Left hand", "Right hand", "Off"
+      }, new Runnable[]{
+        () -> set_one_handed(-1),
+        () -> set_one_handed(1),
+        () -> set_one_handed(0)
+      });
+  }
+
+  private void show_resize_menu()
+  {
+    show_list_menu(R.string.menu_item_resize, new String[]{
+        "Wider", "Narrower", "Taller", "Shorter"
+      }, new Runnable[]{
+        () -> resize_floating(true, false),
+        () -> resize_floating(false, false),
+        () -> resize_floating(false, true),
+        () -> resize_floating(false, false)
+      });
+  }
+
+  private void resize_floating(boolean wider, boolean taller)
+  {
+    if (!_floating)
+      toggle_floating();
+    ensure_floating_frame();
+    if (wider || !taller)
+    {
+      int delta = wider ? (int)dp(24f) : -(int)dp(24f);
+      _floatingFrame.adjustWidth(delta);
+    }
+    if (taller)
+      _floatingFrame.adjustHeightScale(+0.08f);
+    else if (!wider)
+      _floatingFrame.adjustHeightScale(0f); // narrower handled above; shorter via width
+  }
+
+  private void edit_key(String name)
+  {
+    _keyeventhandler.key_up(KeyValue.getKeyByName(name), Pointers.Modifiers.EMPTY);
+  }
+
+  private void set_one_handed(int side)
+  {
+    _oneHandedSide = side;
+    apply_one_handed();
+  }
+
+  private void apply_one_handed()
+  {
+    if (_keyboard_container_view == null)
+      return;
+    if (_oneHandedSide == 0)
+    {
+      _keyboard_container_view.setPadding(0, 0, 0, 0);
+      return;
+    }
+    int inset = Math.round(getResources().getDisplayMetrics().widthPixels * 0.28f);
+    if (_oneHandedSide < 0)
+      _keyboard_container_view.setPadding(0, 0, inset, 0); // left hand: shrink right
+    else
+      _keyboard_container_view.setPadding(inset, 0, 0, 0); // right hand: shrink left
+  }
+
+  private void show_list_menu(int titleRes, String[] items, Runnable[] actions)
+  {
+    ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
+        android.R.layout.simple_list_item_1, items);
+    final AlertDialog dialog = new AlertDialog.Builder(this)
+      .setTitle(titleRes)
+      .setAdapter(adapter, new DialogInterface.OnClickListener() {
+        public void onClick(DialogInterface _d, int which) {
+          if (which >= 0 && which < actions.length && actions[which] != null)
+            actions[which].run();
+        }
+      })
+      .create();
+    Utils.show_dialog_on_ime(dialog, this);
   }
 
   /** Gboard-style top-left menu: floating, emoji, clipboard, settings. */
@@ -464,10 +620,16 @@ public class Keyboard2 extends InputMethodService
     if (!_floating || _floatingFrame == null)
       return;
     Rect r = _floatingFrame.screenRect();
+    // Floating card: report only the touchable region and reserve no vertical
+    // space, so the card floats over the app instead of pushing it up.
+    // Reporting visibleTopInsets/contentTopInsets from the card's screen
+    // rect is a feedback loop (the system re-places the IME window, which
+    // moves the card, which changes the insets) — it was what made the card
+    // jump to the top and refuse to stay put.
     outInsets.touchableInsets = InputMethodService.Insets.TOUCHABLE_INSETS_REGION;
     outInsets.touchableRegion.set(r);
-    outInsets.visibleTopInsets = r.top;
-    outInsets.contentTopInsets = r.top;
+    outInsets.visibleTopInsets = 0;
+    outInsets.contentTopInsets = 0;
   }
 
   private static void updateLayoutHeightOf(final Window window, final int layoutHeight) {
@@ -740,5 +902,12 @@ public class Keyboard2 extends InputMethodService
   private View inflate_view(int layout)
   {
     return View.inflate(new ContextThemeWrapper(this, _config.theme), layout, null);
+  }
+
+  private float dp(float v)
+  {
+    return android.util.TypedValue.applyDimension(
+        android.util.TypedValue.COMPLEX_UNIT_DIP, v,
+        getResources().getDisplayMetrics());
   }
 }
