@@ -189,11 +189,6 @@ public class Keyboard2 extends InputMethodService
     View voiceBtn = _keyboard_container_view.findViewById(R.id.toolbar_voice_button);
     voiceBtn.setOnClickListener((v) ->
         _recv.handle_event_key(KeyValue.Event.SWITCH_VOICE_TYPING));
-    View hideBtn = _keyboard_container_view.findViewById(R.id.toolbar_hide_button);
-    hideBtn.setOnClickListener((v) ->
-        _recv.handle_event_key(KeyValue.Event.HIDE_SELF));
-    View langBtn = _keyboard_container_view.findViewById(R.id.toolbar_language_button);
-    langBtn.setOnClickListener((v) -> incrTextLayout(1));
     apply_one_handed();
   }
 
