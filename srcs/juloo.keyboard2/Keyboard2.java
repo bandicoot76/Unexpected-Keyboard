@@ -57,6 +57,7 @@ public class Keyboard2 extends InputMethodService
   private ViewGroup _clipboard_pane = null;
   private Handler _handler;
   private Receiver _recv;
+  private View _floatingBottomBar = null;
 
   // Floating mode (Gboard-style): full-screen host, a drag/resize card.
   private FrameLayout _floatingHost = null;
@@ -189,6 +190,15 @@ public class Keyboard2 extends InputMethodService
     View voiceBtn = _keyboard_container_view.findViewById(R.id.toolbar_voice_button);
     voiceBtn.setOnClickListener((v) ->
         _recv.handle_event_key(KeyValue.Event.SWITCH_VOICE_TYPING));
+
+    // Bottom bar — only visible while floating.
+    _floatingBottomBar = _keyboard_container_view.findViewById(R.id.floating_bottom_bar);
+    View hideBtn = _keyboard_container_view.findViewById(R.id.toolbar_hide_button);
+    hideBtn.setOnClickListener((v) -> toggle_floating()); // dock back (hide floating)
+    View langBtn = _keyboard_container_view.findViewById(R.id.toolbar_language_button);
+    langBtn.setOnClickListener((v) -> _recv.handle_event_key(KeyValue.Event.CHANGE_METHOD_PICKER));
+
+    apply_floating_chrome();
     apply_one_handed();
   }
 
@@ -603,6 +613,13 @@ public class Keyboard2 extends InputMethodService
     e.apply();
   }
 
+  /** Shows/hides the floating-only bottom bar (hide/show + language). */
+  private void apply_floating_chrome()
+  {
+    if (_floatingBottomBar != null)
+      _floatingBottomBar.setVisibility(_floating ? View.VISIBLE : View.GONE);
+  }
+
   private void toggle_floating()
   {
     _floating = !_floating;
@@ -610,6 +627,7 @@ public class Keyboard2 extends InputMethodService
     // Re-evaluate fullscreen so the window becomes full-height when floating
     // and shrinks back to wrap-content on un-float.
     updateFullscreenMode();
+    apply_floating_chrome();
     if (_floating)
     {
       setInputView(_keyboard_container_view);
