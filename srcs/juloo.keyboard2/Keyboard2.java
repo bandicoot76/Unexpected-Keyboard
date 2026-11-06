@@ -189,6 +189,11 @@ public class Keyboard2 extends InputMethodService
     View voiceBtn = _keyboard_container_view.findViewById(R.id.toolbar_voice_button);
     voiceBtn.setOnClickListener((v) ->
         _recv.handle_event_key(KeyValue.Event.SWITCH_VOICE_TYPING));
+    View hideBtn = _keyboard_container_view.findViewById(R.id.toolbar_hide_button);
+    hideBtn.setOnClickListener((v) ->
+        _recv.handle_event_key(KeyValue.Event.HIDE_SELF));
+    View langBtn = _keyboard_container_view.findViewById(R.id.toolbar_language_button);
+    langBtn.setOnClickListener((v) -> incrTextLayout(1));
     apply_one_handed();
   }
 
@@ -540,11 +545,18 @@ public class Keyboard2 extends InputMethodService
     updateLayoutHeightOf(window, ViewGroup.LayoutParams.MATCH_PARENT);
     final View inputArea = window.findViewById(android.R.id.inputArea);
 
+    final boolean full = isFullscreenMode() || _floating;
     updateLayoutHeightOf(
             (View) inputArea.getParent(),
-            (isFullscreenMode() || _floating)
-                    ? ViewGroup.LayoutParams.MATCH_PARENT
-                    : ViewGroup.LayoutParams.WRAP_CONTENT);
+            full ? ViewGroup.LayoutParams.MATCH_PARENT
+                : ViewGroup.LayoutParams.WRAP_CONTENT);
+    // The input-area frame itself must also fill the window when floating, or
+    // the floating host inside it collapses to the keyboard height and the
+    // card has no vertical room to travel (drag works horizontally but not
+    // vertically).
+    updateLayoutHeightOf(inputArea,
+        full ? ViewGroup.LayoutParams.MATCH_PARENT
+             : ViewGroup.LayoutParams.WRAP_CONTENT);
     updateLayoutGravityOf((View) inputArea.getParent(), Gravity.BOTTOM);
 
   }
@@ -600,6 +612,9 @@ public class Keyboard2 extends InputMethodService
   {
     _floating = !_floating;
     Config.globalPrefs().edit().putBoolean(PREF_FLOATING_ENABLED, _floating).apply();
+    // Re-evaluate fullscreen so the window becomes full-height when floating
+    // and shrinks back to wrap-content on un-float.
+    updateFullscreenMode();
     if (_floating)
     {
       setInputView(_keyboard_container_view);
@@ -700,8 +715,10 @@ public class Keyboard2 extends InputMethodService
   @Override
   public boolean onEvaluateFullscreenMode()
   {
-    /* Entirely disable fullscreen mode. */
-    return false;
+    // Floating needs the IME window to be full-height so the card has room to
+    // travel vertically. The extract editor is already suppressed via
+    // setExtractViewShown(false), so the card just overlays the app.
+    return _floating;
   }
 
   @Override

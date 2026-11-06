@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:hardwareAccelerated="false" android:orientation="vertical" android:background="?attr/colorKeyboard">
   <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:background="?attr/colorKeyboard">
-    <ImageButton android:id="@+id/toolbar_menu_button" android:layout_width="44dp" android:layout_height="44dp" android:src="@drawable/ic_menu" android:background="?android:attr/selectableItemBackground" android:padding="10dp" android:contentDescription="@string/menu_title" android:tint="?attr/colorLabel" android:scaleType="fitCenter"/>
     <juloo.keyboard2.suggestions.CandidatesView android:id="@+id/candidates_view" style="@style/candidates_view" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1">
       <TextView android:id="@+id/candidates_emoji" style="@style/candidates_emoji"/>
       <TextView android:id="@+id/candidates_left" style="@style/candidates_item"/>
@@ -13,4 +12,10 @@
     <ImageButton android:id="@+id/toolbar_voice_button" android:layout_width="44dp" android:layout_height="44dp" android:src="@drawable/ic_mic" android:background="?android:attr/selectableItemBackground" android:padding="10dp" android:contentDescription="@string/key_descr_voice_typing" android:tint="?attr/colorLabel" android:scaleType="fitCenter"/>
   </LinearLayout>
   <juloo.keyboard2.Keyboard2View android:id="@+id/keyboard_view" android:layout_width="match_parent" android:layout_height="wrap_content"/>
+  <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:background="?attr/colorKeyboard">
+    <ImageButton android:id="@+id/toolbar_menu_button" android:layout_width="44dp" android:layout_height="44dp" android:src="@drawable/ic_menu" android:background="?android:attr/selectableItemBackground" android:padding="10dp" android:contentDescription="@string/menu_title" android:tint="?attr/colorLabel" android:scaleType="fitCenter"/>
+    <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
+    <ImageButton android:id="@+id/toolbar_hide_button" android:layout_width="44dp" android:layout_height="44dp" android:src="@drawable/ic_hide_keyboard" android:background="?android:attr/selectableItemBackground" android:padding="10dp" android:contentDescription="@string/hide_keyboard" android:tint="?attr/colorLabel" android:scaleType="fitCenter"/>
+    <ImageButton android:id="@+id/toolbar_language_button" android:layout_width="44dp" android:layout_height="44dp" android:src="@drawable/ic_language" android:background="?android:attr/selectableItemBackground" android:padding="10dp" android:contentDescription="@string/menu_item_next_language" android:tint="?attr/colorLabel" android:scaleType="fitCenter"/>
+  </LinearLayout>
 </LinearLayout>
