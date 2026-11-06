@@ -124,6 +124,12 @@
     <string name="key_descr_switch_greekmath">Greek &amp; math symbols</string>
     <string name="key_descr_change_method">Switch keyboard</string>
     <string name="key_descr_voice_typing">Voice typing</string>
+    <string name="menu_title">More options</string>
+    <string name="menu_item_theme">Theme</string>
+    <string name="menu_item_settings">Settings</string>
+    <string name="menu_item_clipboard">Clipboard</string>
+    <string name="menu_item_emoji">Emoji</string>
+    <string name="menu_item_floating">Floating keyboard</string>
     <string name="key_descr_copy">Copy</string>
     <string name="key_descr_paste">Paste</string>
     <string name="key_descr_cut">Cut</string>

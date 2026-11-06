@@ -148,16 +148,18 @@ public class FloatingKeyboardFrame extends FrameLayout
 
   private void applyPosition(float x, float y)
   {
-    // Clamp the *translation only*, without mutating the stored position, so
-    // a late layout (parent not yet sized) does not erase the remembered spot.
+    android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+    // Authoritative travel bounds are the screen, because while floating the
+    // host fills the screen. A parent that is not yet measured (or collapsed
+    // to the card size) must not be allowed to clamp travel to zero, which is
+    // what pinned the card to the top-left and made it un-draggable.
     View parent = (View)getParent();
-    float maxX = 0f;
-    float maxY = 0f;
-    if (parent != null)
-    {
-      maxX = Math.max(0f, parent.getWidth() - _widthPx);
-      maxY = Math.max(0f, parent.getHeight() - (_handlePx + childKeyboardHeight()));
-    }
+    float boundW = (parent != null && parent.getWidth() > _widthPx)
+        ? parent.getWidth() : dm.widthPixels;
+    float boundH = (parent != null && parent.getHeight() > 0)
+        ? parent.getHeight() : dm.heightPixels;
+    float maxX = Math.max(0f, boundW - _widthPx);
+    float maxY = Math.max(0f, boundH - (_handlePx + childKeyboardHeight()));
     setTranslationX(clamp(x, 0f, maxX));
     setTranslationY(clamp(y, 0f, maxY));
   }

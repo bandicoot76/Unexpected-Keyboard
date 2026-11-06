@@ -1,6 +1,9 @@
 package juloo.keyboard2;
 
+import android.annotation.SuppressLint;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
@@ -18,6 +21,7 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 import android.view.inputmethod.InputMethodSubtype;
+import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import java.util.AbstractMap.SimpleEntry;
@@ -52,6 +56,7 @@ public class Keyboard2 extends InputMethodService
   private ViewGroup _emojiPane = null;
   private ViewGroup _clipboard_pane = null;
   private Handler _handler;
+  private Receiver _recv;
 
   // Floating mode (Gboard-style): full-screen host, a drag/resize card.
   private FrameLayout _floatingHost = null;
@@ -150,10 +155,10 @@ public class Keyboard2 extends InputMethodService
         _foldStateTracker.isUnfolded(), _dictionaries);
     _config = Config.globalConfig();
     _floating = prefs.getBoolean(PREF_FLOATING_ENABLED, false);
-    Receiver recvr = this.new Receiver();
-    _suggestions = new Suggestions(recvr, _config);
-    _keyeventhandler = new KeyEventHandler(_config, recvr, _suggestions);
-    KeyValue.Stateful._handler = recvr;
+    _recv = this.new Receiver();
+    _suggestions = new Suggestions(_recv, _config);
+    _keyeventhandler = new KeyEventHandler(_config, _recv, _suggestions);
+    KeyValue.Stateful._handler = _recv;
     _config.handler = _keyeventhandler;
     prefs.registerOnSharedPreferenceChangeListener(this);
     Logs.set_debug_logs(getResources().getBoolean(R.bool.debug_logs));
@@ -175,6 +180,39 @@ public class Keyboard2 extends InputMethodService
     _keyboard_container_view = (ViewGroup)inflate_view(R.layout.keyboard);
     _keyboard_layout_view = (Keyboard2View)_keyboard_container_view.findViewById(R.id.keyboard_view);
     _candidates_view = (CandidatesView)_keyboard_container_view.findViewById(R.id.candidates_view);
+
+    View menuBtn = _keyboard_container_view.findViewById(R.id.toolbar_menu_button);
+    menuBtn.setOnClickListener((v) -> show_toolbar_menu());
+    View voiceBtn = _keyboard_container_view.findViewById(R.id.toolbar_voice_button);
+    voiceBtn.setOnClickListener((v) ->
+        _recv.handle_event_key(KeyValue.Event.SWITCH_VOICE_TYPING));
+  }
+
+  /** Gboard-style top-left menu: floating, emoji, clipboard, settings. */
+  private void show_toolbar_menu()
+  {
+    final java.util.List<String> items = Arrays.asList(
+        getString(R.string.menu_item_floating),
+        getString(R.string.menu_item_emoji),
+        getString(R.string.menu_item_clipboard),
+        getString(R.string.menu_item_settings));
+    ArrayAdapter<String> adapter = new ArrayAdapter<String>(this,
+        android.R.layout.simple_list_item_1, items);
+    final AlertDialog dialog = new AlertDialog.Builder(this)
+      .setTitle(R.string.menu_title)
+      .setAdapter(adapter, new DialogInterface.OnClickListener() {
+        public void onClick(DialogInterface _d, int which) {
+          switch (which)
+          {
+            case 0: toggle_floating(); break;
+            case 1: _recv.handle_event_key(KeyValue.Event.SWITCH_EMOJI); break;
+            case 2: _recv.handle_event_key(KeyValue.Event.SWITCH_CLIPBOARD); break;
+            case 3: start_activity(SettingsActivity.class); break;
+          }
+        }
+      })
+      .create();
+    Utils.show_dialog_on_ime(dialog, this);
   }
 
   InputMethodManager get_imm()
@@ -303,6 +341,17 @@ public class Keyboard2 extends InputMethodService
       _floatingFrame.setKeyboardView(_keyboard_layout_view);
       restore_floating_geometry();
       super.setInputView(_floatingHost);
+      // The IMS adds the input view at MATCH_PARENT x WRAP_CONTENT, which
+      // collapses the floating host to the card's own height and zeroes the
+      // card's vertical travel. Force the host full-screen so the card has
+      // room to be dragged anywhere and touches reach it wherever it parks.
+      ViewGroup.LayoutParams hostLp = _floatingHost.getLayoutParams();
+      if (hostLp != null)
+      {
+        hostLp.width = ViewGroup.LayoutParams.MATCH_PARENT;
+        hostLp.height = ViewGroup.LayoutParams.MATCH_PARENT;
+        _floatingHost.setLayoutParams(hostLp);
+      }
       updateSoftInputWindowLayoutParams();
       _floatingHost.requestApplyInsets();
       return;
@@ -353,6 +402,9 @@ public class Keyboard2 extends InputMethodService
     _floatingHost = new FrameLayout(this);
     _floatingFrame = new FloatingKeyboardFrame(this);
     _floatingFrame.setListener(this::on_floating_geometry);
+    // The host must fill the input area so the card has room to travel.
+    // A WRAP_CONTENT host collapses to the card size, leaving maxX/maxY at 0
+    // and pinning the card to the top-left where it cannot be dragged.
     _floatingHost.addView(_floatingFrame, new FrameLayout.LayoutParams(
         ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
         Gravity.TOP | Gravity.START));
@@ -366,8 +418,12 @@ public class Keyboard2 extends InputMethodService
     int w = prefs.getInt(PREF_FLOATING_W, -1);
     if (w <= 0)
       w = Math.round(getResources().getDisplayMetrics().widthPixels * 0.7f);
-    int x = prefs.getInt(PREF_FLOATING_X, 0);
-    int y = prefs.getInt(PREF_FLOATING_Y, 0);
+    // Park centred and about a quarter down so the card is neither hidden
+    // under the status bar nor stuck knee-height off a fresh install.
+    int x = prefs.getInt(PREF_FLOATING_X,
+        Math.max(0, (getResources().getDisplayMetrics().widthPixels - w) / 2));
+    int y = prefs.getInt(PREF_FLOATING_Y,
+        getResources().getDisplayMetrics().heightPixels / 4);
     float h = prefs.getFloat(PREF_FLOATING_H, 1f);
     _floatingFrame.setInitialGeometry(x, y, w, h);
   }
