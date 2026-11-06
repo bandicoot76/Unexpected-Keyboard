@@ -53,6 +53,9 @@ public class Keyboard2View extends View
   private Theme _theme;
   private Theme.Computed _tc;
 
+  /** Row-height multiplier set by the floating frame's resize grip. */
+  private float _rowHeightScale = 1f;
+
   private static RectF _tmpRect = new RectF();
 
   enum Vertical
@@ -102,6 +105,16 @@ public class Keyboard2View extends View
     else
       uiFlags &= ~View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
     setSystemUiVisibility(uiFlags);
+  }
+
+  /** Scales the rendered row height (floating resize). 1f is the default. */
+  public void setRowHeightScale(float scale)
+  {
+    if (_rowHeightScale == scale)
+      return;
+    _rowHeightScale = scale;
+    requestLayout();
+    invalidate();
   }
 
   public void setKeyboard(KeyboardData kw)
@@ -267,12 +280,16 @@ public class Keyboard2View extends View
   public void onMeasure(int wSpec, int hSpec)
   {
     DisplayMetrics dm = getContext().getResources().getDisplayMetrics();
-    int width = dm.widthPixels;
+    // When hosted in the floating card the measure spec is the card width;
+    // when docked it is the full input area. Fall back to the screen width
+    // only when the spec is unspecified (first pass / custom hosts).
+    int width = (MeasureSpec.getMode(wSpec) == MeasureSpec.UNSPECIFIED)
+        ? dm.widthPixels : MeasureSpec.getSize(wSpec);
     _marginLeft = Math.max(_config.horizontal_margin, _insets_left);
     _marginRight = Math.max(_config.horizontal_margin, _insets_right);
     _marginBottom = _config.margin_bottom + _insets_bottom;
     _keyWidth = (width - _marginLeft - _marginRight) / _keyboard.keysWidth;
-    _tc = new Theme.Computed(_theme, _config, _keyWidth, _keyboard);
+    _tc = new Theme.Computed(_theme, _config, _keyWidth, _keyboard, _rowHeightScale);
     // Compute the size of labels based on the width or the height of keys. The
     // margin around keys is taken into account. Keys normal aspect ratio is
     // assumed to be 3/2 for a 10 columns layout. It's generally more, the

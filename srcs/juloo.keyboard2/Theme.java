@@ -126,10 +126,20 @@ public class Theme
 
     public Computed(Theme theme, Config config, float keyWidth, KeyboardData layout)
     {
+      this(theme, config, keyWidth, layout, 1f);
+    }
+
+    /** [rowHeightScale] scales the row height (used while floating, when the
+        resize grip makes the rows taller or shorter than the screen-derived
+        default). */
+    public Computed(Theme theme, Config config, float keyWidth, KeyboardData layout,
+        float rowHeightScale)
+    {
       // Make sure that the layout isn't higher than the screen. Take the
       // height of the candidates view into account.
-      row_height = Math.min(config.keyboard_rows_height_pixels,
+      float base_row_height = Math.min(config.keyboard_rows_height_pixels,
           (config.screenHeightPixels - config.keyboard_rows_height_pixels) / layout.keysHeight);
+      row_height = base_row_height * rowHeightScale;
       vertical_margin = config.key_vertical_margin * row_height;
       horizontal_margin = config.key_horizontal_margin * keyWidth;
       // Add half of the key margin on the left and on the top as it's also

@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.inputmethodservice.InputMethodService;
 import android.os.Build.VERSION;
@@ -51,6 +52,17 @@ public class Keyboard2 extends InputMethodService
   private ViewGroup _emojiPane = null;
   private ViewGroup _clipboard_pane = null;
   private Handler _handler;
+
+  // Floating mode (Gboard-style): full-screen host, a drag/resize card.
+  private FrameLayout _floatingHost = null;
+  private FloatingKeyboardFrame _floatingFrame = null;
+  private boolean _floating = false;
+
+  private static final String PREF_FLOATING_X = "floating_x";
+  private static final String PREF_FLOATING_Y = "floating_y";
+  private static final String PREF_FLOATING_W = "floating_width";
+  private static final String PREF_FLOATING_H = "floating_height_scale";
+  private static final String PREF_FLOATING_ENABLED = "floating_enabled";
 
   private Config _config;
 
@@ -137,6 +149,7 @@ public class Keyboard2 extends InputMethodService
     Config.initGlobalConfig(prefs, getResources(),
         _foldStateTracker.isUnfolded(), _dictionaries);
     _config = Config.globalConfig();
+    _floating = prefs.getBoolean(PREF_FLOATING_ENABLED, false);
     Receiver recvr = this.new Receiver();
     _suggestions = new Suggestions(recvr, _config);
     _keyeventhandler = new KeyEventHandler(_config, recvr, _suggestions);
@@ -282,6 +295,19 @@ public class Keyboard2 extends InputMethodService
     ViewParent parent = v.getParent();
     if (parent != null && parent instanceof ViewGroup)
       ((ViewGroup)parent).removeView(v);
+
+    if (_floating && v == _keyboard_container_view)
+    {
+      ensure_floating_frame();
+      _floatingFrame.setKeyboardContainer(_keyboard_container_view);
+      _floatingFrame.setKeyboardView(_keyboard_layout_view);
+      restore_floating_geometry();
+      super.setInputView(_floatingHost);
+      updateSoftInputWindowLayoutParams();
+      _floatingHost.requestApplyInsets();
+      return;
+    }
+
     super.setInputView(v);
     updateSoftInputWindowLayoutParams();
     v.requestApplyInsets();
@@ -311,11 +337,81 @@ public class Keyboard2 extends InputMethodService
 
     updateLayoutHeightOf(
             (View) inputArea.getParent(),
-            isFullscreenMode()
+            (isFullscreenMode() || _floating)
                     ? ViewGroup.LayoutParams.MATCH_PARENT
                     : ViewGroup.LayoutParams.WRAP_CONTENT);
     updateLayoutGravityOf((View) inputArea.getParent(), Gravity.BOTTOM);
 
+  }
+
+  // ----- Floating mode (Gboard-style card: drag + resize) -----
+
+  private void ensure_floating_frame()
+  {
+    if (_floatingFrame != null)
+      return;
+    _floatingHost = new FrameLayout(this);
+    _floatingFrame = new FloatingKeyboardFrame(this);
+    _floatingFrame.setListener(this::on_floating_geometry);
+    _floatingHost.addView(_floatingFrame, new FrameLayout.LayoutParams(
+        ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+        Gravity.TOP | Gravity.START));
+  }
+
+  private void restore_floating_geometry()
+  {
+    if (_floatingFrame == null)
+      return;
+    SharedPreferences prefs = Config.globalPrefs();
+    int w = prefs.getInt(PREF_FLOATING_W, -1);
+    if (w <= 0)
+      w = Math.round(getResources().getDisplayMetrics().widthPixels * 0.7f);
+    int x = prefs.getInt(PREF_FLOATING_X, 0);
+    int y = prefs.getInt(PREF_FLOATING_Y, 0);
+    float h = prefs.getFloat(PREF_FLOATING_H, 1f);
+    _floatingFrame.setInitialGeometry(x, y, w, h);
+  }
+
+  private void on_floating_geometry(int x, int y, int w, float h, boolean committed)
+  {
+    if (!committed)
+      return;
+    SharedPreferences.Editor e = Config.globalPrefs().edit();
+    e.putInt(PREF_FLOATING_X, x);
+    e.putInt(PREF_FLOATING_Y, y);
+    e.putInt(PREF_FLOATING_W, w);
+    e.putFloat(PREF_FLOATING_H, h);
+    e.apply();
+  }
+
+  private void toggle_floating()
+  {
+    _floating = !_floating;
+    Config.globalPrefs().edit().putBoolean(PREF_FLOATING_ENABLED, _floating).apply();
+    if (_floating)
+    {
+      setInputView(_keyboard_container_view);
+    }
+    else
+    {
+      _keyboard_layout_view.setRowHeightScale(1f);
+      super.setInputView(_keyboard_container_view);
+      updateSoftInputWindowLayoutParams();
+      _keyboard_container_view.requestApplyInsets();
+    }
+  }
+
+  @Override
+  public void onComputeInsets(InputMethodService.Insets outInsets)
+  {
+    super.onComputeInsets(outInsets);
+    if (!_floating || _floatingFrame == null)
+      return;
+    Rect r = _floatingFrame.screenRect();
+    outInsets.touchableInsets = InputMethodService.Insets.TOUCHABLE_INSETS_REGION;
+    outInsets.touchableRegion.set(r);
+    outInsets.visibleTopInsets = r.top;
+    outInsets.contentTopInsets = r.top;
   }
 
   private static void updateLayoutHeightOf(final Window window, final int layoutHeight) {
@@ -519,6 +615,10 @@ public class Keyboard2 extends InputMethodService
 
         case CHANGE_DICTIONARY:
           new DictionarySwitcher(Keyboard2.this, _dictionaries, this).choose();
+          break;
+
+        case TOGGLE_FLOATING:
+          Keyboard2.this.toggle_floating();
           break;
       }
     }

@@ -92,6 +92,7 @@
     <item>shaw_imperial_en</item>
     <item>sinhala_phonetic</item>
     <item>tamil_default</item>
+    <item>termux_launcher_qwerty</item>
     <item>urdu_phonetic_ur</item>
     <item>custom</item>
   </string-array>
@@ -186,6 +187,7 @@
     <item>Shaw Imperial</item>
     <item>සිංහල</item>
     <item>தமிழ்</item>
+    <item>QWERTY (Termux Launcher)</item>
     <item>Urdu Phonetic</item>
     <item>@string/pref_layout_e_custom</item>
   </string-array>
@@ -280,6 +282,7 @@
     <item>@xml/shaw_imperial_en</item>
     <item>@xml/sinhala_phonetic</item>
     <item>@xml/tamil_default</item>
+    <item>@xml/termux_launcher_qwerty</item>
     <item>@xml/urdu_phonetic_ur</item>
     <item>-1</item>
   </integer-array>
