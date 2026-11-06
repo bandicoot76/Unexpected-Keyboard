@@ -187,16 +187,16 @@ public class Keyboard2 extends InputMethodService
 
     View menuBtn = _keyboard_container_view.findViewById(R.id.toolbar_menu_button);
     attach_menu_swipe(menuBtn);
-    View voiceBtn = _keyboard_container_view.findViewById(R.id.toolbar_voice_button);
-    voiceBtn.setOnClickListener((v) ->
-        _recv.handle_event_key(KeyValue.Event.SWITCH_VOICE_TYPING));
+    View keyboardBtn = _keyboard_container_view.findViewById(R.id.toolbar_keyboard_button);
+    keyboardBtn.setOnClickListener((v) ->
+        _recv.handle_event_key(KeyValue.Event.CHANGE_METHOD_PICKER));
 
     // Bottom bar — only visible while floating.
     _floatingBottomBar = _keyboard_container_view.findViewById(R.id.floating_bottom_bar);
     View hideBtn = _keyboard_container_view.findViewById(R.id.toolbar_hide_button);
     hideBtn.setOnClickListener((v) -> toggle_floating()); // dock back (hide floating)
     View langBtn = _keyboard_container_view.findViewById(R.id.toolbar_language_button);
-    langBtn.setOnClickListener((v) -> _recv.handle_event_key(KeyValue.Event.CHANGE_METHOD_PICKER));
+    langBtn.setOnClickListener((v) -> incrTextLayout(1)); // cycle language/layout
 
     apply_floating_chrome();
     apply_one_handed();
@@ -575,6 +575,7 @@ public class Keyboard2 extends InputMethodService
     _floatingHost = new FrameLayout(this);
     _floatingFrame = new FloatingKeyboardFrame(this);
     _floatingFrame.setListener(this::on_floating_geometry);
+    _floatingFrame.setDockAction(this::dock_floating);
     // The host must fill the input area so the card has room to travel.
     // A WRAP_CONTENT host collapses to the card size, leaving maxX/maxY at 0
     // and pinning the card to the top-left where it cannot be dragged.
@@ -620,6 +621,13 @@ public class Keyboard2 extends InputMethodService
       _floatingBottomBar.setVisibility(_floating ? View.VISIBLE : View.GONE);
   }
 
+  /** Re-docks the floating card; only does anything while floating. */
+  private void dock_floating()
+  {
+    if (_floating)
+      toggle_floating();
+  }
+
   private void toggle_floating()
   {
     _floating = !_floating;
@@ -648,6 +656,17 @@ public class Keyboard2 extends InputMethodService
     if (!_floating || _floatingFrame == null)
       return;
     Rect r = _floatingFrame.screenRect();
+    // Guard: if the card has not been measured/laid out yet (empty screen
+    // rect), fall back to the whole window as a touchable region. Reporting
+    // an empty region makes Android treat the IME window as having no target
+    // and can hide the keyboard as soon as it appears.
+    if (r.isEmpty() || r.width() <= 0 || r.height() <= 0)
+    {
+      outInsets.touchableInsets = InputMethodService.Insets.TOUCHABLE_INSETS_VISIBLE;
+      outInsets.visibleTopInsets = 0;
+      outInsets.contentTopInsets = 0;
+      return;
+    }
     // Floating card: report only the touchable region and reserve no vertical
     // space, so the card floats over the app instead of pushing it up.
     // Reporting visibleTopInsets/contentTopInsets from the card's screen

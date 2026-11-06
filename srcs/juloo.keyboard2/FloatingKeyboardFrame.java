@@ -43,6 +43,13 @@ public class FloatingKeyboardFrame extends FrameLayout
   private static final float MIN_HEIGHT_SCALE = 0.6f;
   private static final float MAX_HEIGHT_SCALE = 2.4f;
 
+  /** How close (in dp) the card's bottom edge must be to the screen bottom to
+      auto-dock on drop. The user asked for ~1 cm. */
+  private static final float DOCK_MARGIN_DP = 40f;
+
+  /** Max gap between two taps (ms) on the handle counted as a dock double-tap. */
+  private static final int DOUBLE_TAP_MS = 320;
+
   /** Where the frame ended up or was resized to. */
   public interface Listener
   {
@@ -77,6 +84,11 @@ public class FloatingKeyboardFrame extends FrameLayout
 
   private Listener _listener;
 
+  /** Invoked when the user asks to dock (drag-to-bottom or double-tap). */
+  private Runnable _dockAction;
+
+  private long _lastTapUpTime = 0;
+
   private final Paint _chromePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
   public FloatingKeyboardFrame(Context context)
@@ -102,6 +114,12 @@ public class FloatingKeyboardFrame extends FrameLayout
   public void setListener(Listener l)
   {
     _listener = l;
+  }
+
+  /** Sets the callback that re-docks the keyboard into the bottom bar. */
+  public void setDockAction(Runnable r)
+  {
+    _dockAction = r;
   }
 
   public int widthPx() { return _widthPx; }
@@ -266,6 +284,13 @@ public class FloatingKeyboardFrame extends FrameLayout
         }
         if (inHandleZone(e.getX(), e.getY()))
         {
+          long now = android.os.SystemClock.uptimeMillis();
+          if (now - _lastTapUpTime <= DOUBLE_TAP_MS)
+          {
+            _lastTapUpTime = 0;
+            requestDock();
+            return true;
+          }
           beginDrag(e);
           return true;
         }
@@ -295,10 +320,39 @@ public class FloatingKeyboardFrame extends FrameLayout
 
   private void doDrag(MotionEvent e, boolean committed)
   {
+    boolean wasDrag = _dragging;
     _xPx = _startX + (e.getRawX() - _downRawX);
     _yPx = _startY + (e.getRawY() - _downRawY);
     seatPosition();
-    notifyGeometry(committed);
+    if (committed)
+    {
+      // Remember the up so a quick second tap can count as a double-tap dock.
+      if (Math.hypot(e.getRawX() - _downRawX, e.getRawY() - _downRawY) < dp(8f))
+        _lastTapUpTime = android.os.SystemClock.uptimeMillis();
+      if (nearBottom())
+        requestDock();
+      else
+        notifyGeometry(true);
+    }
+  }
+
+  /** True when the card's bottom edge is within ~1 cm of the screen bottom. */
+  private boolean nearBottom()
+  {
+    android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+    View parent = (View)getParent();
+    float boundH = (parent != null && parent.getHeight() > 0)
+        ? parent.getHeight() : dm.heightPixels;
+    int cardH = getHeight() > 0 ? getHeight()
+        : (_handlePx + childKeyboardHeight());
+    return (boundH - (_yPx + cardH)) <= dp(DOCK_MARGIN_DP);
+  }
+
+  private void requestDock()
+  {
+    _lastTapUpTime = 0;
+    if (_dockAction != null)
+      _dockAction.run();
   }
 
   /** Drag the card by raw deltas without touching the stored position. */

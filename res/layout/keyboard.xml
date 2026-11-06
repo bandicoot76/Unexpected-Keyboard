@@ -10,12 +10,12 @@
       <TextView android:id="@+id/candidates_lang_name" style="@style/candidates_lang_name"/>
       <Button android:id="@+id/dictionary_switch" style="@style/change_dictionary"/>
     </juloo.keyboard2.suggestions.CandidatesView>
-    <ImageButton android:id="@+id/toolbar_voice_button" android:layout_width="44dp" android:layout_height="44dp" android:src="@drawable/ic_mic" android:background="?android:attr/selectableItemBackground" android:padding="10dp" android:contentDescription="@string/key_descr_voice_typing" android:tint="?attr/colorLabel" android:scaleType="fitCenter"/>
+    <ImageButton android:id="@+id/toolbar_keyboard_button" android:layout_width="44dp" android:layout_height="44dp" android:src="@drawable/ic_globe" android:background="?android:attr/selectableItemBackground" android:padding="10dp" android:contentDescription="@string/switch_keyboard" android:tint="?attr/colorLabel" android:scaleType="fitCenter"/>
   </LinearLayout>
   <juloo.keyboard2.Keyboard2View android:id="@+id/keyboard_view" android:layout_width="match_parent" android:layout_height="wrap_content"/>
   <LinearLayout android:id="@+id/floating_bottom_bar" android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:background="?attr/colorKeyboard" android:visibility="gone">
     <ImageButton android:id="@+id/toolbar_hide_button" android:layout_width="44dp" android:layout_height="40dp" android:src="@drawable/ic_hide_keyboard" android:background="?android:attr/selectableItemBackground" android:padding="10dp" android:contentDescription="@string/hide_keyboard" android:tint="?attr/colorLabel" android:scaleType="fitCenter"/>
     <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
-    <ImageButton android:id="@+id/toolbar_language_button" android:layout_width="44dp" android:layout_height="40dp" android:src="@drawable/ic_language" android:background="?android:attr/selectableItemBackground" android:padding="10dp" android:contentDescription="@string/menu_item_next_language" android:tint="?attr/colorLabel" android:scaleType="fitCenter"/>
+    <ImageButton android:id="@+id/toolbar_language_button" android:layout_width="44dp" android:layout_height="40dp" android:src="@drawable/ic_globe" android:background="?android:attr/selectableItemBackground" android:padding="10dp" android:contentDescription="@string/menu_item_next_language" android:tint="?attr/colorLabel" android:scaleType="fitCenter"/>
   </LinearLayout>
 </LinearLayout>
