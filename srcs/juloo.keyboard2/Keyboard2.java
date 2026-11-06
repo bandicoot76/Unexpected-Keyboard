@@ -728,10 +728,12 @@ public class Keyboard2 extends InputMethodService
   @Override
   public boolean onEvaluateFullscreenMode()
   {
-    // Floating needs the IME window to be full-height so the card has room to
-    // travel vertically. The extract editor is already suppressed via
-    // setExtractViewShown(false), so the card just overlays the app.
-    return _floating;
+    // Never use Android's fullscreen IME mode: it replaces the input view with
+    // a fullscreen extract editor that, combined with our floating host, made
+    // the keyboard appear briefly and then vanish (and refuse to come back).
+    // Vertical travel for the floating card comes from the input-area being
+    // full-height in updateSoftInputWindowLayoutParams, not from fullscreen.
+    return false;
   }
 
   @Override
