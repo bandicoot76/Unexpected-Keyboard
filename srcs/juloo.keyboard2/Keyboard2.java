@@ -399,7 +399,7 @@ public class Keyboard2 extends InputMethodService
     }
     _config.extra_keys_subtype = _config.device_locales.extra_keys();
     if (default_layout == null)
-      default_layout = loadLayout(R.xml.latn_qwerty_us);
+      default_layout = loadLayout(R.xml.termux_launcher_qwerty);
     _localeTextLayout = default_layout;
   }
 

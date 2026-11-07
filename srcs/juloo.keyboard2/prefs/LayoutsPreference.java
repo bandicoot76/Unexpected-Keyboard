@@ -21,7 +21,7 @@ public class LayoutsPreference extends ListGroupPreference<LayoutsPreference.Lay
 {
   static final String KEY = "layouts";
   static final List<Layout> DEFAULT =
-    Collections.singletonList((Layout)new SystemLayout());
+    Collections.singletonList((Layout)new NamedLayout("termux_launcher_qwerty"));
   static final ListGroupPreference.Serializer<Layout> SERIALIZER =
     new Serializer();
 
